@@ -201,7 +201,7 @@ while read pts; do
  fi
 service_porta[$i]=$(echo "$pts" | awk '{print $2}')
 service_serv[$i]=$(echo "$pts" | awk '{print $1}')
-echo -e " \033[1;37m[$i] -> \033[1;31m${service_serv[$i]} : \033[1;32m${service_porta[$i]}"
+echo -e " \033[1;37m[$i] -> \033[0;36m${service_serv[$i]} : \033[1;32m${service_porta[$i]}"
 i=$(($i+1))
 done < $porta_var
 echo -e "${cor[5]} ${txt[277]}"
