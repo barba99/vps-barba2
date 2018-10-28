@@ -1,0 +1,288 @@
+st=$(echo $txtofus|rev)
+txt_ofuscatw=$(echo $txtofus|rev)
+}
+
+fun_atualizar () {
+cd /etc/adm-lite
+chmod 777 ./*
+echo -e "${cor[3]} "¿Realmente desea actualizar su ADM-Ultimate?""
+read -p " [S/N]: " -e -i n sshsn
+[[ "$sshsn" = @(s|S|y|Y) ]] && {
+[[ -e /etc/adm-lite/idioma ]] && rm /etc/adm-lite/idioma
+./updateadm
+}
+return 0
+}
+
+#GERA NOVO CLIENTE
+newclient () {
+cp /etc/openvpn/client-common.txt $HOME/$1.ovpn
+echo "<key>
+$(cat /etc/openvpn/client-key.pem)
+</key>
+<cert>
+$(cat /etc/openvpn/client-cert.pem)
+</cert>
+<ca>
+$(cat /etc/openvpn/ca.pem)
+</ca>" >> $HOME/$1.ovpn
+}
+
+open_1 () {
+CLIENT="$1"
+senha="$2"
+daysrnf="$3"
+limit="$4"
+#cd /etc/openvpn/easy-rsa/
+#./easyrsa build-client-full $CLIENT nopass
+newclient "$CLIENT"
+#echo ""
+#echo "$CLIENT KEY" ~/"$CLIENT.ovpn"
+valid=$(date '+%C%y-%m-%d' -d " +$daysrnf days")
+datexp=$(date "+%d/%m/%Y" -d "+ $daysrnf days")
+useradd -M -s /bin/false -d /home/ovpn/ $CLIENT -e $valid
+usermod -p $(openssl passwd -1 $senha) $CLIENT
+#Arquivo
+echo -e " ${txt[318]}"
+echo -e "${cor[1]} =================================== \033[1;37m"
+read -p " [S/N]: " -e -i S newfile
+  [[ ${newfile} = @(s|S|y|Y) ]] && {
+  echo -e " ${txt[319]}"
+  read -p " [S/N]: " -e -i S ovpnauth
+  [[ ${ovpnauth} != @(s|S|y|Y) ]] && sed -i "s;auth-user-pass;<auth-user-pass>\n$CLIENT\n$senha\n</auth-user-pass>;g" $HOME/$CLIENT.ovpn
+  cd $HOME
+  zip ./$CLIENT.zip ./$CLIENT.ovpn > /dev/null 2>&1
+  echo -e "\033[1;31m ${txt[320]} ($HOME/$CLIENT.zip)"
+  echo -e "\033[1;32m ${txt[321]} ( * menu * opcion 2 * opcion 8 )"
+  }
+rm ./$CLIENT.ovpn
+cd /etc/adm-lite
+echo "senha: $senha" > $dir_user/$CLIENT
+echo "limite: $limit" >> $dir_user/$CLIENT
+echo "data: $valid" >> $dir_user/$CLIENT
+}
+
+open_2 () {
+CLIENT="$1"
+userdel --force $CLIENT
+cd /etc/adm-lite
+[[ -e $dir_user/$CLIENT ]] && rm $dir_user/$CLIENT
+}
+
+#SISTEMA PORTAS
+open_port () {
+tmp_arq="/tmp/arq-tmp"
+ while read arquivo; do
+if [ ! -e "$tmp_arq" ]; then
+echo "$arquivo" > $tmp_arq
+else
+echo "$arquivo" >> $tmp_arq
+fi
+if [ "$(echo "$arquivo" | awk '{print $1}')" = "$2" ]; then
+ [[ "$(cat $tmp_arq | grep "$2 $3" | wc -l)" = "0" ]] && echo "$2 $3" >> $tmp_arq
+fi
+done < $1
+mv -f $tmp_arq $1
+}
+
+open_dropbear () {
+tmp_arq="/tmp/arq-tmp"
+arquivo="/etc/default/dropbear"
+echo -e "${cor[2]} |1| >${cor[5]} ${txt[279]}"
+echo -e "${cor[2]} |2| >${cor[5]} ${txt[280]}\033[1;37m"
+read -p " [ 1 / 2 ]: " escolhaas
+if [ "$escolhaas" = "1" ]; then
+porta="$1"
+sed "s;-p $porta ;;g" $arquivo > $tmp_arq
+mv -f $tmp_arq $arquivo
+service dropbear restart > /dev/null 2>&1 &
+sleep 2s
+echo -e "${cor[5]} ${txt[281]}"
+return
+elif [ "$escolhaas" = "2" ]; then
+read -p " Nova Porta: " newport
+porta="$newport"
+sed -i "s/443/$porta -p 443/g" $arquivo
+service dropbear restart > /dev/null 2>&1 &
+sleep 2s
+echo -e "${cor[5]} ${txt[281]}"
+return
+fi
+}
+
+open_squid () {
+tmp_arq="/tmp/arq-tmp"
+if [ -d "/etc/squid" ]; then
+arquivo="/etc/squid/squid.conf"
+elif [ -d "/etc/squid3" ]; then
+arquivo="/etc/squid3/squid.conf"
+fi
+echo -e "${cor[2]} |1| >${cor[5]} ${txt[279]}"
+echo -e "${cor[2]} |2| >${cor[5]} ${txt[280]}\033[1;37m"
+read -p " [ 1 / 2 ]: " escolhaas
+if [ "$escolhaas" = "1" ]; then
+porta="$1"
+cat $arquivo | grep -v "http_port $porta" > $tmp_arq
+mv -f $tmp_arq $arquivo
+service squid3 restart > /dev/null 2>&1 &
+service squid restart > /dev/null 2>&1 &
+sleep 2s
+echo -e "${cor[5]} ${txt[281]}"
+return
+elif [ "$escolhaas" = "2" ]; then
+read -p " Nova Porta: " newport
+open_port "$arquivo" "http_port" "$newport"
+service squid3 restart > /dev/null 2>&1 &
+service squid restart > /dev/null 2>&1 &
+sleep 2s
+echo -e "${cor[5]} ${txt[281]}"
+return
+fi
+}
+
+open_ssh () {
+tmp_arq="/tmp/arq-tmp"
+arquivo="/etc/ssh/sshd_config"
+echo -e "${cor[2]} |1| >${cor[5]} ${txt[279]}"
+echo -e "${cor[2]} |2| >${cor[5]} ${txt[280]}\033[1;37m"
+read -p " [ 1 / 2 ]: " escolhaas
+if [ "$escolhaas" = "1" ]; then
+porta="$1"
+cat $arquivo | grep -v "Port $porta" > $tmp_arq
+mv -f $tmp_arq $arquivo
+service ssh restart > /dev/null 2>&1 &
+service sshd restart > /dev/null 2>&1 &
+sleep 2s
+echo -e "${cor[5]} ${txt[281]}"
+return
+elif [ "$escolhaas" = "2" ]; then
+read -p " Nova Porta: " newport
+open_port "$arquivo" "Port" "$newport"
+service ssh restart > /dev/null 2>&1 &
+service sshd restart > /dev/null 2>&1 &
+sleep 2s
+echo -e "${cor[5]} ${txt[281]}"
+return
+fi
+}
+
+open_python () {
+echo -e "${cor[2]} ${cor[5]}${txt[279]}"
+read -p " [S/N]: " -e -i n pthsn
+[[ "$pthsn" = @(s|S|y|Y) ]] && {
+echo -e "${cor[1]} =================================== ${cor[0]}"
+porta="$1"
+fuser -k $porta/tcp > /dev/null 2>&1
+sleep 2s
+echo -e "${cor[5]} ${txt[281]}"
+return
+}
+}
+
+minhas_portas () {
+echo -e "${cor[1]} =================================== ${cor[4]}"
+portas_var="/tmp/portas"
+porta_var="/tmp/portas2"
+lsof -V -i tcp -P -n | grep -v "ESTABLISHED" |grep -v "COMMAND" | grep "LISTEN" > $portas_var
+while read port; do
+var1=$(echo $port | awk '{print $1}')
+var2=$(echo $port | awk '{print $9}' | awk -F ":" '{print $2}')
+ if [ ! -e "$porta_var" ]; then
+ echo -e "$var1 $var2" > $porta_var
+ fi
+ if [ "$(cat $porta_var | grep "$var1" | grep "$var2")" = "" ]; then
+ echo -e "$var1 $var2" >> $porta_var
+ fi
+done < $portas_var
+i=1
+while read pts; do
+ if [ "$pts" = "" ]; then
+ break
+ fi
+service_porta[$i]=$(echo "$pts" | awk '{print $2}')
+service_serv[$i]=$(echo "$pts" | awk '{print $1}')
+echo -e " \033[1;37m[$i] -> \033[1;31m${service_serv[$i]} : \033[1;32m${service_porta[$i]}"
+i=$(($i+1))
+done < $porta_var
+echo -e "${cor[5]} ${txt[277]}"
+echo -e "${cor[1]} =================================== \033[1;37m"
+read -p " [1-$(($i-1))]: " nun
+echo -e "\033[1;31m ${txt[283]} \033[1;32m${service_porta[$nun]}\033[1;31m : \033[1;32m${service_serv[$nun]}\033[0m"
+rm $portas_var
+rm $porta_var
+echo -e "${cor[1]} =================================== ${cor[0]}"
+if [ "${service_serv[$nun]}" = "dropbear" ]; then
+open_dropbear ${service_porta[$nun]}
+elif [ "${service_serv[$nun]}" = "sshd" ]; then
+open_ssh ${service_porta[$nun]}
+elif [ "${service_serv[$nun]}" = "squid3" ]; then
+open_squid ${service_porta[$nun]}
+elif [ "${service_serv[$nun]}" = "squid" ]; then
+open_squid ${service_porta[$nun]}
+elif [ "${service_serv[$nun]}" = "python" ]; then
+open_python ${service_porta[$nun]}
+elif [ "${service_serv[$nun]}" = "python3" ]; then
+open_python ${service_porta[$nun]}
+else
+echo -e "\033[1;31m ${txt[278]}\033[0m"
+fi
+echo -e "${cor[1]} =================================== ${cor[0]}"
+}
+
+#VERIFICA SE E NUMERICO
+number_var () {
+unset var_number
+if (echo "$1" | egrep '[^0-9]' &> /dev/null); then
+echo -e "${cor[5]} ${txt[98]}"
+else
+var_number="$1"
+fi
+}
+
+ports_ () {
+portas_var="/tmp/portas"
+porta_var="/tmp/portas2"
+lsof -V -i tcp -P -n | grep -v "ESTABLISHED" |grep -v "COMMAND" | grep "LISTEN" > $portas_var
+while read port; do
+var1=$(echo $port | awk '{print $1}')
+var2=$(echo $port | awk '{print $9}' | awk -F ":" '{print $2}')
+ if [ ! -e "$porta_var" ]; then
+ echo -e "$var1 $var2" > $porta_var
+ fi
+ if [ "$(cat $porta_var | grep "$var1" | grep "$var2")" = "" ]; then
+ echo -e "$var1 $var2" >> $porta_var
+ fi
+done < $portas_var
+i=1
+while true; do
+a=$(sed -n "$i"p $porta_var | awk '{print $1}')
+b=$(sed -n "$i"p $porta_var | awk '{print $2}')
+[[ "$a" != "" ]] && texto="${cor[2]} ° \033[1;37m$a: \033[1;31m$b" || texto=""
+[[ "$a" = "" ]] && break
+i=$(($i+1))
+c=$(sed -n "$i"p $porta_var | awk '{print $1}')
+d=$(sed -n "$i"p $porta_var | awk '{print $2}')
+[[ "$c" != "" ]] && texto_="${cor[2]} ° \033[1;37m$c: \033[1;31m$d" || texto_=""
+[[ "$a" = "" ]] && break
+i=$(($i+1))
+echo -e "$texto $texto_"
+done
+rm $portas_var
+rm $porta_var
+}
+
+[[ $v1 = $v2 ]] && vesaoSCT="\033[1;32m${txt[315]}" || vesaoSCT="\033[1;31m${txt[316]}"
+credit=$(cat ./menu_credito)
+__IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
+echo -e "${cor[1]} ∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞${cor[0]}"
+echo -e "${cor[2]} ∆ \033[1;33mVPS-BARBA"
+echo -e "${cor[2]} √ \033[1;33mVersion Oficial"
+echo -e "${cor[1]} ∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞ ${cor[0]}"
+[[ "$VERIFICAR" = "on" ]] && 
+echo -e "${cor[2]} ° \033[1;37m${txt[1]} $__onlines ${cor[2]}    ° \033[1;37m${txt[2]} $__vencidos"
+echo -e "${cor[2]} ° \033[1;33msu sistema$_os"
+echo -e "${cor[2]} ° \033[1;33msu ip\033[1;31m$__IP"
+echo -e "${cor[1]} ∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞${cor[0]}"
+ports_
+echo -e "${cor[1]} ∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞=∞${cor[0]}"
+echo -e "${cor[2]} ${vesaoSCT} ${cor[0]}"
