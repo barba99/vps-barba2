@@ -1,0 +1,40 @@
+#!/bin/bash
+clear
+source cabecalho
+figlet JORGE BARBA
+echo -e "\033[0;32m===================================\033[0m"
+echo -e "\033[1;33m|0| ● [ VOLVER | SALIR ]\033[0m"
+echo -e "\033[1;31m|1|\033[1;36m ● ADMINISTRAR USUARIOS"
+echo -e "\033[1;31m|2|\033[1;36m ● ADMINISTRAR VPS"
+echo -e "\033[1;31m|3|\033[1;36m ● HERRAMIENTAS"
+echo -e "\033[1;31m|4|\033[1;36m ● MENU DE INSTALACION\033[0m"
+echo -e "\033[1;31m|5|\033[1;36m ● \033[1;36mACTUALIZAR SCRIPT VPS-BARBA\033[0m"
+echo -e "\033[1;31m|6|\033[1;36m ● \033[1;36mREMOVER SCRIPT\033[0m"
+echo -e "\033[1;31m|7|\033[1;36m ● \033[1;36mMENU CREDITO\033[0m"
+echo -e "\033[0;32m===================================\033[0m".
+echo -ne "\033[1;33mOPCION: "
+read optons
+case $optons in
+1)
+adm
+read -p " Enter";;
+2)
+adm2
+read -p " Enter";;
+3)
+adm3
+read -p " Enter";;
+4)
+menu-instala
+read -p " Enter";;
+5)
+actualiza
+read -p " Enter";;
+6)
+remover
+read -p " Enter";;
+7)
+credito
+read -p " Enter";;
+esac
+menu
